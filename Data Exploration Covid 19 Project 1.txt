@@ -1,0 +1,126 @@
+﻿Covid 19 Data Exploration
+Covid 19 Data Exploration
+
+
+Skills used: Joins, CTE, Windows Functions, Aggregate Functions
+
+
+-- Data Exploration Queries
+-- Query 1: Retrieve all records with non-null continent
+SELECT *
+FROM `covidportfolioproject-389304.covid_deaths.CovidDeaths`
+WHERE continent IS NOT NULL;
+
+
+-- Query 2: Selected specific columns for initial data exploration
+SELECT location, date, total_cases, new_cases, total_deaths, population
+FROM `covidportfolioproject-389304.covid_deaths.CovidDeaths`
+WHERE continent IS NOT NULL;
+
+
+-- Query 3: Calculate death percentage by country
+SELECT location, date, total_cases, total_deaths, (total_deaths/total_cases)*100 AS death_percentage
+FROM `covidportfolioproject-389304.covid_deaths.CovidDeaths`
+WHERE location like '%United States%'AND continent IS NOT NULL;
+
+
+-- Query 4: Total Cases vs Population
+—-Shows what percentage of the population got Covid
+SELECT location, date, population, total_cases, (total_cases/population)*100 AS population_infected_percentage
+FROM `covidportfolioproject-389304.covid_deaths.CovidDeaths`;
+
+
+– Query 5: Countries with highest infection rate compared to population
+SELECT location, population, MAX(total_cases) AS highest_infected_count, MAX((total_cases/population))*100 AS population_infected_percentage
+FROM `covidportfolioproject-389304.covid_deaths.CovidDeaths`
+GROUP BY location, population
+ORDER BY population_infected_percentage DESC;
+
+
+
+
+
+
+
+
+
+
+
+
+-- Data Visualization Queries
+
+
+--Query 6: Countries with highest death count per population
+SELECT location,MAX(total_deaths) AS total_death_count
+FROM `covidportfolioproject-389304.covid_deaths.CovidDeaths`
+WHERE continent IS NOT NULL
+GROUP BY location
+ORDER BY total_death_count DESC;
+
+
+-- Query 7: Continents with the highest death count per population
+SELECT continent,MAX(total_deaths) AS total_death_count
+FROM `covidportfolioproject-389304.covid_deaths.CovidDeaths`
+WHERE continent IS NOT NULL
+GROUP BY continent
+ORDER BY total_death_count DESC;
+
+
+-- Query 8: Global Numbers for total cases, total deaths and death percentage
+SELECT SUM(new_cases) AS total_cases, SUM(new_deaths) AS total_deaths, SUM(new_deaths)/SUM(new_cases)*100 AS death_percentage
+FROM `covidportfolioproject-389304.covid_deaths.CovidDeaths`
+WHERE continent IS NOT NULL;
+
+
+-- Query 9: Joining CovidDeaths and CovidVaccinations tables
+SELECT *
+FROM `covidportfolioproject-389304.covid_deaths.CovidDeaths` dea
+JOIN `covidportfolioproject-389304.covid_vaccinations.CovidVaccinations` vac
+ ON dea.location = vac.location
+ AND dea.date = vac.date
+ LIMIT 100;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+-- Query 10: Total Population vs Vaccinations: Percentage of Population that received at least one Covid Vaccine
+SELECT dea.continent, dea.location, dea.date, dea.population, vac.new_vaccinations_smoothed,
+ SUM(vac.new_vaccinations_smoothed) OVER (PARTITION BY dea.location ORDER BY dea.location, dea.Date) AS rolling_people_vaccinated,
+ (SUM(vac.new_vaccinations_smoothed) OVER (PARTITION BY dea.location ORDER BY dea.location, dea.Date)/dea.population) * 100 AS vaccination_percentage
+FROM `covidportfolioproject-389304.covid_deaths.CovidDeaths` dea
+JOIN `covidportfolioproject-389304.covid_vaccinations.CovidVaccinations` vac
+ON dea.location = vac.location
+AND dea.date = vac.date
+WHERE dea.continent IS NOT NULL;
+
+
+-- Query 11: Calculate the percentage of population vaccinated by location using a CTE
+WITH PercentPopulationVaccinated AS (
+ SELECT dea.continent, dea.location, dea.date, dea.population, vac.new_vaccinations_smoothed,
+   SUM(vac.new_vaccinations_smoothed) OVER (PARTITION BY dea.location ORDER BY dea.location, dea.date) AS rolling_people_vaccinated
+ FROM `covidportfolioproject-389304.covid_deaths.CovidDeaths` dea
+ JOIN `covidportfolioproject-389304.covid_vaccinations.CovidVaccinations` vac
+   ON dea.location = vac.location
+   AND dea.date = vac.date
+ WHERE dea.continent IS NOT NULL
+)
+SELECT *, (rolling_people_vaccinated/population) * 100 AS vaccination_percentage
+FROM PercentPopulationVaccinated;
